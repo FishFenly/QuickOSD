@@ -9,11 +9,11 @@
 #				1.5: Finshed functionality + Changed WindowStyle to None to remove close button + Removed debug functions
 #				1.6: Add build logging functionality
 #				1.7: Fixed issue with cmd + cmtrace not showing infront of app
+#				1.8: Model Validation
 #PLCHANGES -	Check for existing computer objects with matching name
-#				Refresh/Restart Button
 #				Change ComputerName input to a device information displaying PC name, MAC, IP
 #				Validate domain credentials with an attempt to map a dummy drive or something
-#				Validate against list of supported hardware models
+#				Automate model validation, maybe a lookup on added driver packs?
 #region XAML
 $ixaml = @"
 <Window x:Class="QuickOSD.UserInterface"
@@ -102,6 +102,11 @@ function Get-EthStatus{
 	Get-WmiObject Win32_NetworkAdapter | 
 		? NetConnectionID -like "*Ethernet*" | select -expand NetConnectionStatus
 }
+#Suppoerted Models
+function Get-Model{
+	Get-WmiObject Win32_computersystem | select -expand model
+}
+$Models = "HP Elitebook 840 G1","HP Elitebook 840 G2","HP Elitebook 8460p","HP Elitebook 8470p","Surface Book","Surface Pro 3","Surface Pro 4"
 #Site Connection
 #function Ping-SCCM{
 #	try{
@@ -153,11 +158,13 @@ function Run-StatusChecks{
 			$WPFstatusTextBox.Appendtext("The device is a Desktop or VM" + [char]13)
 			$PowerOK = "pass"
 		}
+		$WPFstatusTextBox.Appendtext("Checking if model is supported" + [char]13)
+		if($Models -contains (Get-Model).ToString()) {$smodel = "pass"} else {$smodel = "fail"}
 	}
 	else{
 		$WPFstatusTextBox.Appendtext([char]13 + "Preflight checks failed. Please resolve the above issues and reboot" + [char]13)
 	}
-	if($LANOK -and $PowerOK -eq "pass"){
+	if($LANOK -and $PowerOK -and $smodel -eq "pass"){
 		$WPFtsContinueButton.IsEnabled = "True"
 	}
 }
