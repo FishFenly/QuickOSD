@@ -8,11 +8,11 @@
 #				1.4: Added Button functionality and added further logging to panel from status checks
 #				1.5: Finshed functionality + Changed WindowStyle to None to remove close button + Removed debug functions
 #				1.6: Add build logging functionality
+#				1.7: Fixed issue with cmd + cmtrace not showing infront of app
 #PLCHANGES -	Check for existing computer objects with matching name
 #				Refresh/Restart Button
 #				Change ComputerName input to a device information displaying PC name, MAC, IP
 #				Validate domain credentials with an attempt to map a dummy drive or something
-#				Fix issue with cmd and cmtrace opening behind apps, without breaking it - topmost = true in XAML
 #				Validate against list of supported hardware models
 #region XAML
 $ixaml = @"
@@ -24,7 +24,7 @@ $ixaml = @"
         xmlns:local="clr-namespace:QuickOSD"
         mc:Ignorable="d"
                 Title="QuickOSD" Height="550" Width="750" Background="#FFF9F9F9" 
-        WindowStartupLocation="CenterScreen" ResizeMode="NoResize" Topmost="True" WindowStyle="None">
+        WindowStartupLocation="CenterScreen" ResizeMode="NoResize" WindowStyle="None">
     <Grid>
         <Border BorderBrush="#FFF9F9F9" BorderThickness="2" Margin="357,51,26,0" Background="#FF383636" Height="443" VerticalAlignment="Top" CornerRadius="9">
             <StackPanel Margin="8" >
