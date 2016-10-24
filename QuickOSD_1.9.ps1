@@ -188,7 +188,7 @@ $WPFtsContinueButton.Add_Click({
 		Copy-Item -Path $Blog -Destination M:\
 		Remove-PSDrive -Name "M"
 		$WPFstatusTextBox.Appendtext("Setting computer name variable to assigned value" + [char]13)
-		$tsenv.Value(OSDComputerName) = $computerNameInput.Text
+		$tsenv.Value("OSDComputerName") = $computerNameInput.Text
 		$WPFstatusTextBox.Appendtext("Build preflight checks passed. Closing this window.")
 		
 		[Environment]::Exit(1)
