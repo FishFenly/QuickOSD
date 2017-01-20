@@ -1,9 +1,9 @@
 ﻿<#
 .SYNOPSIS
 Preflight tool for SCCM OS task sequences. Performs basic prebuild checks and prevents continuing if errors occur.
-.DESCRIPTION
+.NOTES
 AUTHOR       -  Joseph Fenly
-CHANGELOG    - 	1.0: Initial commit - Basic XAML generation, Form Variables function and Ethernet function
+CHANGELOG    - 	                1.0: Initial commit - Basic XAML generation, Form Variables function and Ethernet function
 				1.1: Added CMTrace and CMD buttons in XAML
 				1.2: Changed status indicators to verbose logging panel
 				1.3: Added Power Status checking
@@ -14,8 +14,9 @@ CHANGELOG    - 	1.0: Initial commit - Basic XAML generation, Form Variables func
 				1.8: Model Validation
 				1.9: ComputerName sets OSDComputerName variable
                                 2.0: Fixed SCCM site connection issue + added TPM preflight check
-FUTURECHANGES - Check for existing computer objects with matching names
-				DIsplay device information displaying MAC, IP, Model etc
+                                2.1: Removed model validation until more maintainable solution is found   
+FUTURECHANGES -                 Check for existing computer objects with matching names
+				Display device information displaying MAC, IP, Model etc
 				Validate domain credentials with an attempt to map a dummy drive or something
 				Automate model validation, maybe a lookup on added driver packs?
 #>
@@ -98,24 +99,24 @@ $xaml.SelectNodes("//*[@Name]") | % {
 #region Data
 #Network
 function Get-EthernetIP{
-	try{
-		$ip = Get-NetIPConfiguration | ? InterfaceAlias -Like "*Ethernet*" | 
-			select -Expand IPv4Address | select -Expand IPaddress -First 1
-		return "IP address is: " + $ip
-	}
-	catch{
-		return "An unexpected error occured while trying to evaluate your IP address"
-	}
+    try{
+	$ip = Get-NetIPConfiguration | ? InterfaceAlias -Like "*Ethernet*" | 
+	  select -Expand IPv4Address | select -Expand IPaddress -First 1
+	return "IP address is: " + $ip
+    }
+    catch{
+	return "An unexpected error occured while trying to evaluate your IP address"
+    }
 }
 function Get-EthStatus{
-	Get-WmiObject Win32_NetworkAdapter | 
-		? NetConnectionID -like "*Ethernet*" | select -expand NetConnectionStatus
+    Get-WmiObject Win32_NetworkAdapter | 
+      ? NetConnectionID -like "*Ethernet*" | select -expand NetConnectionStatus
 }
 #Suppoerted Models
 function Get-Model{
-	Get-WmiObject Win32_computersystem | select -expand model
+    Get-WmiObject Win32_computersystem | select -expand model
 }
-$Models = "HP Elitebook 840 G1","HP Elitebook 840 G2","HP Elitebook 8460p","HP Elitebook 8470p","Surface Book","Surface Pro 3","Surface Pro 4"
+$Models = "HP Elitebook 840 G1","HP Elitebook 840 G2","HP Elitebook 840 G3","HP Elitebook 8460p","HP Elitebook 8470p","Surface Book","Surface Pro 3","Surface Pro 4"
 #Site Connection
 function Get-Connect{
     try{
@@ -156,91 +157,103 @@ function Get-TPMStatus{
 $UCreds = Get-Credential -Message "Please enter your domain credentials eg. Waterstons\username"
 $tsenv = New-Object -COMObject Microsoft.SMS.TSEnvironment
 function Run-StatusChecks{
-	$WPFstatusTextBox.Appendtext("Starting network checks" + [char]13) 
-	if((Get-EthStatus).ToString() -eq "2") {
-	    $WPFstatusTextBox.Appendtext("Completing network status check" + [char]13)
-	    $WPFstatusTextBox.Appendtext("Getting IP address assigned to Ethernet adapter" + [char]13)
-	    $WPFstatusTextBox.Appendtext((Get-EthernetIP).ToString() + [char]13)
-	    $WPFstatusTextBox.Appendtext("Establishing connection to SCCM Site"  + [char]13)
-	    $LANOK = "pass"
-	}
-	else{
-	    $WPFstatusTextBox.Appendtext("Error: No network connection found" + [char]13)
-	    $LANOK = "fail"
-	}
-	if($LANOK -eq "pass"){
-	    $WPFstatusTextBox.Appendtext("Querying device type" + [char]13)
-	    if((Get-DeviceType).ToString() -eq "10" -or (Get-DeviceType).ToString() -eq "9" -or (Get-DeviceType).ToString() -eq "14"){
-		$WPFstatusTextBox.Appendtext("The device is a Laptop" + [char]13)
-		if((Get-BatteryStatus).ToString() -eq "True"){
-		    $WPFstatusTextBox.Appendtext("The device is connected to a power source" + [char]13)
-		    $PowerOK = "pass"
-		}
-		else{
-		    $WPFstatusTextBox.Appendtext("Please connect your device to a power source" + [char]13)
-		    $PowerOK = "fail"
-		}
-	    }
-	    else{
-		$WPFstatusTextBox.Appendtext("The device is a Desktop or VM" + [char]13)
+    $WPFstatusTextBox.Appendtext("Starting network checks" + [char]13) 
+    if((Get-EthStatus).ToString() -eq "2") {
+	$WPFstatusTextBox.Appendtext("Completing network status check" + [char]13)
+	$WPFstatusTextBox.Appendtext("Getting IP address assigned to Ethernet adapter" + [char]13)
+	$WPFstatusTextBox.Appendtext((Get-EthernetIP).ToString() + [char]13)
+	$WPFstatusTextBox.Appendtext("Establishing connection to SCCM Site"  + [char]13)
+	$LANOK = "pass"
+    }
+    else{
+	$WPFstatusTextBox.Appendtext("Error: No network connection found" + [char]13)
+	$LANOK = "fail"
+    }
+    if($LANOK -eq "pass"){
+	$WPFstatusTextBox.Appendtext("Querying device type" + [char]13)
+	if((Get-DeviceType).ToString() -eq "10" -or (Get-DeviceType).ToString() -eq "9" -or (Get-DeviceType).ToString() -eq "14"){
+	    $WPFstatusTextBox.Appendtext("The device is a Laptop" + [char]13)
+	    if((Get-BatteryStatus).ToString() -eq "True"){
+		$WPFstatusTextBox.Appendtext("The device is connected to a power source" + [char]13)
 		$PowerOK = "pass"
 	    }
-	    $WPFstatusTextBox.Appendtext("Checking if model is supported" + [char]13)
-	    if($Models -contains (Get-Model).ToString()) {$smodel = "pass"} else {$smodel = "fail"}
+	    else{
+		$WPFstatusTextBox.Appendtext("Please connect your device to a power source" + [char]13)
+		$PowerOK = "fail"
+	    }
 	}
 	else{
-	    $WPFstatusTextBox.Appendtext([char]13 + "Preflight checks failed. Please resolve the above issues and reboot" + [char]13)
+	    $WPFstatusTextBox.Appendtext("The device is a Desktop or VM" + [char]13)
+	    $PowerOK = "pass"
 	}
-	if($LANOK -and $PowerOK -and $smodel -eq "pass"){
-	    $WPFtsContinueButton.IsEnabled = "True"
-	}
+	$WPFstatusTextBox.Appendtext("Checking if model is supported" + [char]13)
+	if($Models -contains (Get-Model).ToString()) {$smodel = "pass"} else {$smodel = "fail"}
+    }
+    else{
+	$WPFstatusTextBox.Appendtext([char]13 + "Preflight checks failed. Please resolve the above issues and reboot" + [char]13)
+    }
+    if(Get-TPMStatus -ne "Fail"){
+	$WPFstatusTextBox.Appendtext("TPM check is enabled and ready for Bitlocker" + [char]13)
+	$TPMOK = "pass"
+    }
+    else{
+	$WPFstatusTextBox.Appendtext("TPM check failed. Please reboot the device into BIOS and enable TPM" + [char]13)
+	$TPMOK = "fail"
+    }
+    if($LANOK -and $PowerOK -and $TPMOK -eq "pass"){
+	$WPFtsContinueButton.IsEnabled = "True"
+    }
 }
 Run-StatusChecks
 #endregion
 #region Buttons
-$WPFtsContinueButton.Add_Click({
+$WPFtsContinueButton.Add_Click(
+    {
 	$WPFstatusTextBox.Appendtext("Checking input fields" + [char]13)
 	if($WPFuserNameInput.Text -and $WPFcomputerNameInput.Text -ne ""){
-		$WPFstatusTextBox.Appendtext("Creating build log" + [char]13)
-		New-Item "x:\temp" -ItemType Directory
-		$BLog = New-Item "x:\temp\BuildLog_$(Get-date -f dd-MM-yy_hh-mm).log"
-		"Built By: " + $WPFuserNameInput.Text | Out-File $BLog -Append
-		"ComputerName: " + $WPFcomputerNameInput.Text | Out-File $BLog -Append
-		New-PSDrive -Name "M" -PSProvider FileSystem -Root $LogShare -Credential $UCreds
-		Copy-Item -Path $Blog -Destination M:\
-		Remove-PSDrive -Name "M"
-		$WPFstatusTextBox.Appendtext("Setting computer name variable to assigned value" + [char]13)
-		$tsenv.Value("OSDComputerName") = $computerNameInput.Text
-		$WPFstatusTextBox.Appendtext("Build preflight checks passed. Closing this window.")
-		
-		[Environment]::Exit(1)
+	    $WPFstatusTextBox.Appendtext("Creating build log" + [char]13)
+	    New-Item "x:\temp" -ItemType Directory
+	    $BLog = New-Item "x:\temp\BuildLog_$(Get-date -f dd-MM-yy_hh-mm).log"
+	    "Built By: " + $WPFuserNameInput.Text | Out-File $BLog -Append
+	    "ComputerName: " + $WPFcomputerNameInput.Text | Out-File $BLog -Append
+	    New-PSDrive -Name "M" -PSProvider FileSystem -Root $LogShare -Credential $UCreds
+	    Copy-Item -Path $Blog -Destination M:\
+	    Remove-PSDrive -Name "M"
+	    $WPFstatusTextBox.Appendtext("Setting computer name variable to assigned value" + [char]13)
+	    $tsenv.Value("OSDComputerName") = $computerNameInput.Text
+	    $WPFstatusTextBox.Appendtext("Build preflight checks passed. Closing this window.")
+	    
+	    [Environment]::Exit(1)
 	}
 	else{
-		$WPFstatusTextBox.Appendtext("You have not entered your name and Computer Name" + [char]13)
+	    $WPFstatusTextBox.Appendtext("You have not entered your name and Computer Name" + [char]13)
 	}
-})
-$WPFf8Button.Add_Click({
+    })
+$WPFf8Button.Add_Click(
+    {
 	try{
-		$WPFstatusTextBox.Appendtext("Opening a CommandLine terminal." + [char]13)
-		Start-Process "X:\Windows\system32\cmd.exe" -EA SilentlyContinue
+	    $WPFstatusTextBox.Appendtext("Opening a CommandLine terminal." + [char]13)
+	    Start-Process "X:\Windows\system32\cmd.exe" -EA SilentlyContinue
 	}
 	catch{
-		$WPFstatusTextBox.Appendtext("Could not open a CommandLine terminal." + [char]13)
+	    $WPFstatusTextBox.Appendtext("Could not open a CommandLine terminal." + [char]13)
 	}
-})
-$WPFcmtraceButton.Add_Click({
+    })
+$WPFcmtraceButton.Add_Click(
+    {
 	try{
-		$WPFstatusTextBox.Appendtext("Opening CmTrace." + [char]13)
-		Start-Process "X:\sms\bin\x64\CMTrace.exe" -EA SilentlyContinue
+	    $WPFstatusTextBox.Appendtext("Opening CmTrace." + [char]13)
+	    Start-Process "X:\sms\bin\x64\CMTrace.exe" -EA SilentlyContinue
 	}
 	catch{
-		$WPFstatusTextBox.Appendtext("Could not open the CMTrace tool." + [char]13)
+	    $WPFstatusTextBox.Appendtext("Could not open the CMTrace tool." + [char]13)
 	}
 })
-$WPFretryButton.Add_Click({
+$WPFretryButton.Add_Click(
+    {
 	$WPFstatusTextBox.Document.Blocks.Clear()
 	Run-StatusChecks
-})
+    })
 #endregion
 #Load form
 [void]$form.ShowDialog()
