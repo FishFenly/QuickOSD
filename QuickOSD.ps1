@@ -1,8 +1,8 @@
 ﻿<#
 .SYNOPSIS
-Preflight tool for SCCM OS task sequences. Performs basic prebuild checks and prevents continuing if errors occur.
+    Preflight tool for SCCM OS task sequences. Performs basic prebuild checks and prevents continuing if errors occur.
 .NOTES
-AUTHOR       -  Joseph Fenly
+AUTHOR       -                  Joseph Fenly
 CHANGELOG    - 	                1.0: Initial commit - Basic XAML generation, Form Variables function and Ethernet function
 				1.1: Added CMTrace and CMD buttons in XAML
 				1.2: Changed status indicators to verbose logging panel
